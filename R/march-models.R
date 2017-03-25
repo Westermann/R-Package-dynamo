@@ -69,12 +69,10 @@ bidcc.fit <- function(y,opts){
 }
 
 # BEKK
-bekk.filter <- function(y,param){
+bekk.filter <- function(y,param=list()){
   
   T <- nrow(y)
   N <- ncol(y)
-
-  print(names(param))
 
   result <- .C( 'bekk_filter', 
                 S=as.double(rep(0,T*N*N)), 
@@ -86,22 +84,18 @@ bekk.filter <- function(y,param){
                 N=as.integer(N), 
                 PACKAGE="dynamo")
   
-  # filter = list( =result$S , eps=result$eps , loglik=result$loglik )
+  filter = list( Sig=result$S , eps=result$eps , loglik=result$loglik )
   
-  print(result)
   return(result)
 }
 
 bekk.fit <- function(y,opts){
 
   # Input validation and default setting
-  if( class(y) != 'data.frame' ){
-    stop('Please provide the time-series in data.frame format')
-  }
 
   T <- nrow(y)
   N <- ncol(y)
-  nparams <- 3*T^2
+  nparams <- T^2 + 2
 
   if( is.null(opts$param) ){  
     param.init <- rep(0, nparams) 
@@ -118,14 +112,14 @@ bekk.fit <- function(y,opts){
   }
 
   # Optimization
-  # obj  <- function(x){ return( -bekk.filter(y)$loglik ) }  
+  obj  <- function(x){ return( -bekk.filter(y)$loglik ) }  
   
-  # if( fit==TRUE ){ 
-  #   res <- nlminb( param.init, obj, lower=c(1e-5), upper=c(1-1e-5) )
-  #   param.est <- res$par
-  # } else {
-  #   param.est <- param.init 
-  # }
+  if( fit==TRUE ){ 
+    res <- nlminb( param.init, obj, lower=c(1e-5), upper=c(1-1e-5) )
+    param.est <- res$par
+  } else {
+    param.est <- param.init 
+  }
   
   filter <- bekk.filter(y,param.init)
   
@@ -139,7 +133,6 @@ bekk.fit <- function(y,opts){
   # param.est           <- as.array(param.est)
   # dimnames(param.est) <- list( c('lambda') )
 
-  print(filter)
   # list( param=param.est , 
   #       fit=Sig, 
   #       resid=eps,
