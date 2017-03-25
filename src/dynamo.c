@@ -394,27 +394,32 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
 }
 
 
-// BEKK Model Filter
-void bekk_filter(double *_s, double* _eps, double *loglik, double *param, double *_y, int *T, int *N){
+// bekk Model Filter
+void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *param, double *_y, int *T, int *N){
 
   int t,i,j;
   double logden;
-  double A, G;
-  double ***S, **C, **y, **eps;
+  double lambda;
+  double ***S, **y, **eps;
   double **Sig;
   double *work1, **work2;
+  double rho_bar;
   *loglik = 0;
-  A = param[0];
-  G = param[1];
+
+  lambda = param[0];
+
+  // check constraints
+  if( lambda <= 1e-5 || lambda>1 ){
+    *loglik = -HUGE_VAL;
+    return;
+  }
 
   // allocate
   S     = create_real_array3d(*T,*N,*N);
-  C     = create_real_matrix(*T,*T);
   y     = create_and_copy_real_matrix(*T,*N,_y);
   eps   = create_and_copy_real_matrix(*T,*N,_eps);
   work1 = create_real_vector(*N);
   work2 = create_real_matrix(*N,*N);
-
 
   // init
   for( i=0; i<*N; ++i){
@@ -425,46 +430,36 @@ void bekk_filter(double *_s, double* _eps, double *loglik, double *param, double
       work2[j][i] = work2[i][j];
     }
   }
-  for( i=0; i<*T; ++i){
-    for( j=0; j<*T; ++j ){
-      C[i][j] = param[i + j]; 
-    }
-  }
   chol(S[0],work2,*N);
-
-  /* // check constraints */
-  /* if( lambda <= 1e-5 || lambda>1 ){ */
-  /*   *loglik = -HUGE_VAL; */
-  /*   return; */
-  /* } */
+  *loglik = 0;
 
   // loop
   for( t=1; t<*T; ++t ){
 
-    chol_up(S[t],S[t-1],y[t-1],*N,A,G,work1);    
-    /* fwdinv(work2,S[t],*N); */
-    /* matvec(eps[t],work2,y[t],*N); */
+    chol_up(S[t],S[t-1],y[t-1],*N,lambda,1.0-lambda,work1);    
+    fwdinv(work2,S[t],*N);
+    matvec(eps[t],work2,y[t],*N);
 
-    /* logden = -0.5*(*N)*log(2*PI); */
-    /* for(i=0;i<*N;++i) logden += -log( S[t][i][i] )-0.5*eps[t][i]*eps[t][i]; */
+    logden = -0.5*(*N)*log(2*PI);
+    for(i=0;i<*N;++i) logden += -log( S[t][i][i] )-0.5*eps[t][i]*eps[t][i];
 
-    /* *loglik += logden; */
+    *loglik += logden;
   }
 
-  /* // safeguard */
-  /* if( !isfinite(*loglik) ){ */
-  /*   *loglik = -HUGE_VAL; */
-  /* } */
+  // safeguard
+  if( !isfinite(*loglik) ){
+    *loglik = -HUGE_VAL;
+  }
 
-  /* // copy results */
-  /* real_array3d_copy(S,*T,*N,*N,_s); */
-  /* real_matrix_copy(eps,*T,*N,_eps); */
+  // copy results
+  real_array3d_copy(S,*T,*N,*N,_s);
+  real_matrix_copy(eps,*T,*N,_eps);
 
-  /* // cleanup */
-  /* destroy_real_array3d(S,*T,*N,*N); */
-  /* destroy_real_matrix(y,*T,*N); */
-  /* destroy_real_matrix(eps,*T,*N); */
-  /* destroy_real_vector(work1,*N); */
-  /* destroy_real_matrix(work2,*N,*N); */
+  // cleanup
+  destroy_real_array3d(S,*T,*N,*N);
+  destroy_real_matrix(y,*T,*N);
+  destroy_real_matrix(eps,*T,*N);
+  destroy_real_vector(work1,*N);
+  destroy_real_matrix(work2,*N,*N);
 
 }
