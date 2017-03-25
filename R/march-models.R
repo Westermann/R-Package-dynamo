@@ -59,8 +59,6 @@ bidcc.fit <- function(y,opts){
   param.est           <- as.array(param.est)
   dimnames(param.est) <- list( c('alpha','beta') )
   
-  print( param.est) 
-  
   list( param=param.est , 
         fit=rho, 
         resid=eps,
@@ -76,6 +74,7 @@ bekk.filter <- function(y,param=list()){
 
   result <- .C( 'bekk_filter', 
                 S=as.double(rep(0,T*N*N)), 
+                C=as.double(rep(0,T*T)), 
                 eps=as.double(rep(0,T*N)),
                 loglik=as.double(0),
                 param=as.double(param),
@@ -84,9 +83,9 @@ bekk.filter <- function(y,param=list()){
                 N=as.integer(N), 
                 PACKAGE="dynamo")
   
-  filter = list( Sig=result$S , eps=result$eps , loglik=result$loglik )
+  filter = list( Sig=result$S, eps=result$eps, loglik=result$loglik, Consts=result$C )
   
-  return(result)
+  return(filter)
 }
 
 bekk.fit <- function(y,opts){
@@ -100,7 +99,7 @@ bekk.fit <- function(y,opts){
   if( is.null(opts$param) ){  
     param.init <- rep(0, nparams) 
   } else {
-    param.init <- opts$param.init 
+    param.init <- opts$param 
   }
   if( length(param.init) != nparams ){
     stop('Parameter vector has incorrect length')
@@ -123,21 +122,23 @@ bekk.fit <- function(y,opts){
   
   filter <- bekk.filter(y,param.init)
   
-  # Sig.C  <- array( filter$S , dim=c(nrow(y),ncol(y),ncol(y)) )
-  # Sig    <- array( 0 , dim=c(nrow(y),ncol(y),ncol(y)) )
-  # for( t in 1:nrow(y) ) Sig[t,,] = Sig.C[t,,] %*% t(Sig.C[t,,])
-  # eps    <- matrix( filter$eps , nrow(y) , ncol(y) );
-  # vcv    <- vcv.mle( param.est , obj , 0.0001 * param.est )
-  # Sig    <- list( Sig=Sig )
-  # eps    <- data.frame( eps=eps )
-  # param.est           <- as.array(param.est)
-  # dimnames(param.est) <- list( c('lambda') )
+  Sig.C  <- array( filter$S , dim=c(nrow(y),ncol(y),ncol(y)) )
+  Sig    <- array( 0 , dim=c(nrow(y),ncol(y),ncol(y)) )
+  for( t in 1:nrow(y) ) Sig[t,,] = Sig.C[t,,] %*% t(Sig.C[t,,])
+  eps    <- matrix( filter$eps , nrow(y) , ncol(y) );
 
-  # list( param=param.est , 
-  #       fit=Sig, 
-  #       resid=eps,
-  #       vcv=vcv ,
-  #       obj=filter$loglik )
+  # vcv    <- vcv.mle( param.est , obj , 0.0001 * param.est )
+  Sig    <- list( Sig=Sig )
+  eps    <- data.frame( eps=eps )
+  param.est           <- as.array(param.est)
+  # dimnames(param.est) <- list( c('a','b',r) )
+
+  list( param=param.est , 
+        fit=Sig, 
+        C=filter$C,
+        resid=eps,
+        # vcv=vcv ,
+        obj=filter$loglik )
 }
 
 # MEWMA

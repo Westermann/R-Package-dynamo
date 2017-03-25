@@ -432,33 +432,39 @@ void bekk_filter(double *_s, double* _eps, double *loglik, double *param, double
   }
   chol(S[0],work2,*N);
 
+  /* // check constraints */
+  /* if( lambda <= 1e-5 || lambda>1 ){ */
+  /*   *loglik = -HUGE_VAL; */
+  /*   return; */
+  /* } */
+
   // loop
   for( t=1; t<*T; ++t ){
 
     chol_up(S[t],S[t-1],y[t-1],*N,A,G,work1);    
-    fwdinv(work2,S[t],*N);
-    matvec(eps[t],work2,y[t],*N);
+    /* fwdinv(work2,S[t],*N); */
+    /* matvec(eps[t],work2,y[t],*N); */
 
-    logden = -0.5*(*N)*log(2*PI);
-    for(i=0;i<*N;++i) logden += -log( S[t][i][i] )-0.5*eps[t][i]*eps[t][i];
+    /* logden = -0.5*(*N)*log(2*PI); */
+    /* for(i=0;i<*N;++i) logden += -log( S[t][i][i] )-0.5*eps[t][i]*eps[t][i]; */
 
-    *loglik += logden;
+    /* *loglik += logden; */
   }
 
-  // safeguard
-  if( !isfinite(*loglik) ){
-    *loglik = -HUGE_VAL;
-  }
+  /* // safeguard */
+  /* if( !isfinite(*loglik) ){ */
+  /*   *loglik = -HUGE_VAL; */
+  /* } */
 
-  // copy results
-  real_array3d_copy(S,*T,*N,*N,_s);
-  real_matrix_copy(eps,*T,*N,_eps);
+  /* // copy results */
+  /* real_array3d_copy(S,*T,*N,*N,_s); */
+  /* real_matrix_copy(eps,*T,*N,_eps); */
 
-  // cleanup
-  destroy_real_array3d(S,*T,*N,*N);
-  destroy_real_matrix(y,*T,*N);
-  destroy_real_matrix(eps,*T,*N);
-  destroy_real_vector(work1,*N);
-  destroy_real_matrix(work2,*N,*N);
+  /* // cleanup */
+  /* destroy_real_array3d(S,*T,*N,*N); */
+  /* destroy_real_matrix(y,*T,*N); */
+  /* destroy_real_matrix(eps,*T,*N); */
+  /* destroy_real_vector(work1,*N); */
+  /* destroy_real_matrix(work2,*N,*N); */
 
 }
