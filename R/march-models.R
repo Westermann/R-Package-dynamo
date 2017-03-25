@@ -74,20 +74,22 @@ bekk.filter <- function(y,param){
   T <- nrow(y)
   N <- ncol(y)
 
+  print(names(param))
+
   result <- .C( 'bekk_filter', 
-                status = as.integer(0), 
-                S    = as.double(rep(0,T*N*N)), 
-                eps    = as.double(rep(0,T*N)),
-                loglik = as.double(0),
-                as.double(param),
-                as.double(y),
+                S=as.double(rep(0,T*N*N)), 
+                eps=as.double(rep(0,T*N)),
+                loglik=as.double(0),
+                param=as.double(param),
+                y=as.double(as.matrix(y)),
                 T=as.integer(T), 
                 N=as.integer(N), 
                 PACKAGE="dynamo")
   
-  filter = list( Sig=result$S , eps=result$eps , loglik=result$loglik )
+  # filter = list( =result$S , eps=result$eps , loglik=result$loglik )
   
-  return(filter)
+  print(result)
+  return(result)
 }
 
 bekk.fit <- function(y,opts){
@@ -99,7 +101,7 @@ bekk.fit <- function(y,opts){
 
   T <- nrow(y)
   N <- ncol(y)
-  nparams <- (T^2+T)/2 + 2*T^2
+  nparams <- 3*T^2
 
   if( is.null(opts$param) ){  
     param.init <- rep(0, nparams) 
@@ -116,16 +118,16 @@ bekk.fit <- function(y,opts){
   }
 
   # Optimization
-  obj  <- function(x){ return( -mewma.filter(y,x)$loglik ) }  
+  # obj  <- function(x){ return( -bekk.filter(y)$loglik ) }  
   
-  if( fit==TRUE ){ 
-    res <- nlminb( param.init, obj, lower=c(1e-5), upper=c(1-1e-5) )
-    param.est <- res$par
-  } else {
-    param.est <- param.init 
-  }
+  # if( fit==TRUE ){ 
+  #   res <- nlminb( param.init, obj, lower=c(1e-5), upper=c(1-1e-5) )
+  #   param.est <- res$par
+  # } else {
+  #   param.est <- param.init 
+  # }
   
-  filter <- bekk.filter(y,param.est)
+  filter <- bekk.filter(y,param.init)
   
   # Sig.C  <- array( filter$S , dim=c(nrow(y),ncol(y),ncol(y)) )
   # Sig    <- array( 0 , dim=c(nrow(y),ncol(y),ncol(y)) )
@@ -137,7 +139,7 @@ bekk.fit <- function(y,opts){
   # param.est           <- as.array(param.est)
   # dimnames(param.est) <- list( c('lambda') )
 
-  filter
+  print(filter)
   # list( param=param.est , 
   #       fit=Sig, 
   #       resid=eps,
