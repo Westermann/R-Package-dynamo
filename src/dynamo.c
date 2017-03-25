@@ -398,22 +398,23 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
 void bekk_filter(double *_s, double* _eps, double *loglik, double *param, double *_y, int *T, int *N){
 
   int t,i,j;
-  double ***S, **y, **eps;
-  double **C, **A, **G;
+  double logden;
+  double A, G;
+  double ***S, **C, **y, **eps;
   double **Sig;
   double *work1, **work2;
-
-  loglik = 0;
+  *loglik = 0;
+  A = param[0];
+  G = param[1];
 
   // allocate
-  S = create_real_array3d(*T,*N,*N);
-  C = create_real_matrix(*T,*T);
-  A = create_real_matrix(*T,*T);
-  G = create_real_matrix(*T,*T);
-  y = create_and_copy_real_matrix(*T,*N,_y);
-  eps = create_and_copy_real_matrix(*T,*N,_eps);
+  S     = create_real_array3d(*T,*N,*N);
+  C     = create_real_matrix(*T,*T);
+  y     = create_and_copy_real_matrix(*T,*N,_y);
+  eps   = create_and_copy_real_matrix(*T,*N,_eps);
   work1 = create_real_vector(*N);
   work2 = create_real_matrix(*N,*N);
+
 
   // init
   for( i=0; i<*N; ++i){
@@ -425,10 +426,8 @@ void bekk_filter(double *_s, double* _eps, double *loglik, double *param, double
     }
   }
   for( i=0; i<*T; ++i){
-    for( j=0; j<=*T; ++j ){
+    for( j=0; j<*T; ++j ){
       C[i][j] = param[i + j]; 
-      A[i][j] = param[i + j + *T];
-      G[i][j] = param[i + j + *T + *T];
     }
   }
   chol(S[0],work2,*N);
@@ -439,18 +438,18 @@ void bekk_filter(double *_s, double* _eps, double *loglik, double *param, double
   /*   return; */
   /* } */
 
-  /* // loop */
-  /* for( t=1; t<*T; ++t ){ */
+  // loop
+  for( t=1; t<*T; ++t ){
 
-  /*   chol_up(S[t],S[t-1],y[t-1],*N,lambda,1.0-lambda,work1); */    
-  /*   fwdinv(work2,S[t],*N); */
-  /*   matvec(eps[t],work2,y[t],*N); */
+    chol_up(S[t],S[t-1],y[t-1],*N,A,G,work1);    
+    /* fwdinv(work2,S[t],*N); */
+    /* matvec(eps[t],work2,y[t],*N); */
 
-  /*   logden = -0.5*(*N)*log(2*PI); */
-  /*   for(i=0;i<*N;++i) logden += -log( S[t][i][i] )-0.5*eps[t][i]*eps[t][i]; */
+    /* logden = -0.5*(*N)*log(2*PI); */
+    /* for(i=0;i<*N;++i) logden += -log( S[t][i][i] )-0.5*eps[t][i]*eps[t][i]; */
 
-  /*   *loglik += logden; */
-  /* } */
+    /* *loglik += logden; */
+  }
 
   /* // safeguard */
   /* if( !isfinite(*loglik) ){ */
