@@ -400,8 +400,7 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
   int t,i,j;
   double logden;
   double lambda;
-  double ***S, **y, **eps;
-  double **Sig;
+  double ***S, **C, **y, **eps;
   double *work1, **work2;
   double rho_bar;
   *loglik = 0;
@@ -416,18 +415,31 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
 
   // allocate
   S     = create_real_array3d(*T,*N,*N);
+  C     = create_real_matrix(*N,*N);
   y     = create_and_copy_real_matrix(*T,*N,_y);
   eps   = create_and_copy_real_matrix(*T,*N,_eps);
   work1 = create_real_vector(*N);
   work2 = create_real_matrix(*N,*N);
 
   // init
+  // The Covariance Matrix should probably be initialized in some way specific?
   for( i=0; i<*N; ++i){
     for( j=0; j<=i; ++j ){
+      // diagonal starting sigma
       work2[i][j]=0;
+      if (i == j) {
+        work2[i][j]=1;
+      }
       for( t=0; t<*T; ++t ){ work2[i][j] += y[t][i]*y[t][j]; }
       work2[i][j] /= *T;
       work2[j][i] = work2[i][j];
+
+      // posdef uppder triangular
+      if( i <= j ) {
+        C[i][j] = param[i+j+1];
+      } else {
+        C[i][j] = 0;
+      }
     }
   }
   chol(S[0],work2,*N);
@@ -436,7 +448,13 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
   // loop
   for( t=1; t<*T; ++t ){
 
+    // choletzy update on the matrix
+    // should take the current Sigma matrix times lambda
+    // plus the update times lambda - 1
     chol_up(S[t],S[t-1],y[t-1],*N,lambda,1.0-lambda,work1);    
+    /* for( i=0; i<*N; ++i){ */
+    /*   chol_up(S[t], */
+    /* } */
     fwdinv(work2,S[t],*N);
     matvec(eps[t],work2,y[t],*N);
 
