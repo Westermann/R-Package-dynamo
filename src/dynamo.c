@@ -399,16 +399,17 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
 
   int t,i,j;
   double logden;
-  double lambda;
+  double alpha, beta;
   double ***S, **C, **y, **eps;
-  double *work1, **work2;
+  double *work1, **work2, **work3;
   double rho_bar;
   *loglik = 0;
 
-  lambda = param[0];
+  alpha = param[0];
+  beta = param[1];
 
   // check constraints
-  if( lambda <= 1e-5 || lambda>1 ){
+  if( alpha + beta <= 1e-5 || alpha + beta > 1 ){
     *loglik = -HUGE_VAL;
     return;
   }
@@ -420,30 +421,22 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
   eps   = create_and_copy_real_matrix(*T,*N,_eps);
   work1 = create_real_vector(*N);
   work2 = create_real_matrix(*N,*N);
+  work3 = create_real_matrix(*N,*N);
 
   // init
-  // The Covariance Matrix should probably be initialized in some way specific?
+  *loglik = 0;
+
   for( i=0; i<*N; ++i){
-    for( j=0; j<=i; ++j ){
-      // diagonal starting sigma
+    for( j=i; j<*N; ++j ){
       work2[i][j]=0;
-      if (i == j) {
-        work2[i][j]=1;
-      }
       for( t=0; t<*T; ++t ){ work2[i][j] += y[t][i]*y[t][j]; }
       work2[i][j] /= *T;
       work2[j][i] = work2[i][j];
-
-      // posdef uppder triangular
-      if( i <= j ) {
-        C[i][j] = param[i+j+1];
-      } else {
-        C[i][j] = 0;
-      }
+      for( t=0; t<*T; ++t ){ work3[i][j] += param[t+i+2]*param[t+j+2]; }
     }
   }
   chol(S[0],work2,*N);
-  *loglik = 0;
+  chol(C,work3,*N);
 
   // loop
   for( t=1; t<*T; ++t ){
@@ -451,10 +444,8 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
     // choletzy update on the matrix
     // should take the current Sigma matrix times lambda
     // plus the update times lambda - 1
-    chol_up(S[t],S[t-1],y[t-1],*N,lambda,1.0-lambda,work1);    
-    /* for( i=0; i<*N; ++i){ */
-    /*   chol_up(S[t], */
-    /* } */
+    chol_up(S[t],S[t-1],y[t-1],*N,1.0-alpha-beta,alpha,work1);
+    chol_up(S[t],S[t],C,*N,1.0-alpha-beta,beta,work1);
     fwdinv(work2,S[t],*N);
     matvec(eps[t],work2,y[t],*N);
 

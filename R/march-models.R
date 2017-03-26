@@ -92,7 +92,7 @@ bekk.fit <- function(y,opts){
 
   # INPUT 
   if( is.null(opts$param) ){  
-    param.init <- c( 0.94 ) 
+    param.init <- c(0.5,0.2,rep(0,ncol(y)^2)) 
   }
   else {
     param.init <- opts$param.init 
@@ -127,7 +127,7 @@ bekk.fit <- function(y,opts){
   eps    <- data.frame( eps=eps )
   
   param.est           <- as.array(param.est)
-  dimnames(param.est) <- list( c('lambda') )
+  # dimnames(param.est) <- list( c('lambda') )
 
   list( param=param.est , 
         fit=Sig, 
