@@ -397,7 +397,7 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
 // bekk Model Filter
 void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *param, double *_y, int *T, int *N){
 
-  int t,i,j;
+  int t,i,j,k;
   double logden;
   double alpha, beta;
   double ***S, **C, **y, **eps;
@@ -432,20 +432,24 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
       for( t=0; t<*T; ++t ){ work2[i][j] += y[t][i]*y[t][j]; }
       work2[i][j] /= *T;
       work2[j][i] = work2[i][j];
-      for( t=0; t<*T; ++t ){ work3[i][j] += param[t+i+2]*param[t+j+2]; }
+      if( i >= j ){
+        C[i][j] = param[i + j];
+      } else {
+        C[i][j] = 0;
+      }
     }
   }
   chol(S[0],work2,*N);
-  chol(C,work3,*N);
 
   // loop
   for( t=1; t<*T; ++t ){
 
     // choletzy update on the matrix
-    // should take the current Sigma matrix times lambda
-    // plus the update times lambda - 1
-    chol_up(S[t],S[t-1],y[t-1],*N,1.0-alpha-beta,alpha,work1);
-    chol_up(S[t],S[t],C,*N,1.0-alpha-beta,beta,work1);
+    for( k=t-1; k>t-5; --k){
+      if(k>=0){
+        chol_up(S[t],S[k],y[k],*N,1.0-alpha-beta,alpha,work1);
+      }
+    }
     fwdinv(work2,S[t],*N);
     matvec(eps[t],work2,y[t],*N);
 
@@ -454,6 +458,7 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
 
     *loglik += logden;
   }
+  printf("%f\n",*loglik);
 
   // safeguard
   if( !isfinite(*loglik) ){

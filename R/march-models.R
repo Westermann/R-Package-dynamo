@@ -95,7 +95,7 @@ bekk.fit <- function(y,opts){
 
   # INPUT 
   if( is.null(opts$param) ){  
-    param.init <- c(0.5,rep(0,ncol(y)^2)) 
+    param.init <- c(0.5,0.2,rep(0,(N*N+N)/2)) 
   }
   else {
     param.init <- opts$param.init 
@@ -131,10 +131,10 @@ bekk.fit <- function(y,opts){
 
   param.est <- as.array(param.est)
   C <- matrix(, N, N)
-  C[lower.tri(C, diag=TRUE)] <- param.est[3:N+3]
+  C[upper.tri(C, diag=TRUE)] <- param.est[3:N+3]
   param.list <- list(a = param.est[1],
                      b = param.est[2],
-                     c = C)
+                     C = C)
 
   list(param=param.est, 
        param.list=param.list,
