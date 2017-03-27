@@ -1,6 +1,5 @@
 #include <R.h>
 #include <math.h>
-#include <stdio.h>
 
 // utilities
 double *create_real_vector(int size){
@@ -323,7 +322,7 @@ void bidcc_filter(int *status, double *rho, double* eps, double *loglik, double 
 }
 
 // MEWMA Model Filter
-void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double *param, double *_y, int *T, int *N){
+void mewma_filter(int *status, double *_s, double *_eps, double *loglik, double *param, double *_y, int *T, int *N){
 
   int t,i,j;
   double logden;
@@ -335,7 +334,7 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
   *loglik = 0;
 
   lambda = param[0];
-  printf("Running with parameter lamda:%f\n",lambda);
+  Rprintf("Running with parameter lamda:%f",lambda);
 
   // check constraints
   if( lambda <= 1e-5 || lambda>1 ){
@@ -380,7 +379,8 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
     *loglik = -HUGE_VAL;
   }
 
-  printf("Loglikelihood:%f\n",*loglik);
+  Rprintf(" ### Log-Likelihood:%f\n",*loglik);
+  Rprintf("--------------------------------------------------------------------------------#\n");
 
   // copy results
   real_array3d_copy(S,*T,*N,*N,_s);
@@ -397,7 +397,7 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
 
 
 // bekk Model Filter
-void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *param, double *_y, int *T, int *N){
+void bekk_filter(int *status, double *_s, double *_eps, double *loglik, double *param, double *_y, int *T, int *N){
 
   int t,i,j,n;
   double logden, alpha, beta, lambda;
@@ -408,7 +408,7 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
   alpha   = param[0];
   beta    = param[1];
   lambda  = 1 - alpha - beta;
-  printf("Running with parameters alpha:%f and beta:%f\n",alpha,beta);
+  Rprintf("Running with parameters alpha:%f and beta:%f",alpha,beta);
 
   if( lambda <= 1e-5 || lambda > 1 ){
     *loglik = -HUGE_VAL;
@@ -454,7 +454,13 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
     *loglik += logden;
   }
 
-  printf("Loglikelihood:%f\n",*loglik);
+  // safeguard
+  if( !isfinite(*loglik) ){
+    *loglik = -HUGE_VAL;
+  }
+
+  Rprintf(" ### Log-Likelihood:%f\n",*loglik);
+  Rprintf("--------------------------------------------------------------------------------#\n");
 
   // copy results
   real_array3d_copy(S,*T,*N,*N,_s);
