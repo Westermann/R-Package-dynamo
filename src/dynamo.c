@@ -1,4 +1,3 @@
-
 #include <R.h>
 #include <math.h>
 #include <stdio.h>
@@ -336,6 +335,7 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
   *loglik = 0;
 
   lambda = param[0];
+  printf("Running with parameter lamda:%f\n",lambda);
 
   // check constraints
   if( lambda <= 1e-5 || lambda>1 ){
@@ -380,6 +380,8 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
     *loglik = -HUGE_VAL;
   }
 
+  printf("Loglikelihood:%f\n",*loglik);
+
   // copy results
   real_array3d_copy(S,*T,*N,*N,_s);
   real_matrix_copy(eps,*T,*N,_eps);
@@ -397,73 +399,62 @@ void mewma_filter(int *status, double *_s, double* _eps, double *loglik, double 
 // bekk Model Filter
 void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *param, double *_y, int *T, int *N){
 
-  int t,i,j,k;
-  double logden;
-  double alpha, beta;
+  int t,i,j,n;
+  double logden, alpha, beta, lambda;
   double ***S, **C, **y, **eps;
-  double *work1, **work2, **work3;
-  double rho_bar;
+  double *work1, **work2;
   *loglik = 0;
 
-  alpha = param[0];
-  beta = param[1];
+  alpha   = param[0];
+  beta    = param[1];
+  lambda  = 1 - alpha - beta;
+  printf("Running with parameters alpha:%f and beta:%f\n",alpha,beta);
 
-  // check constraints
-  if( alpha + beta <= 1e-5 || alpha + beta > 1 ){
+  if( lambda <= 1e-5 || lambda > 1 ){
     *loglik = -HUGE_VAL;
     return;
   }
 
-  // allocate
   S     = create_real_array3d(*T,*N,*N);
   C     = create_real_matrix(*N,*N);
   y     = create_and_copy_real_matrix(*T,*N,_y);
   eps   = create_and_copy_real_matrix(*T,*N,_eps);
   work1 = create_real_vector(*N);
   work2 = create_real_matrix(*N,*N);
-  work3 = create_real_matrix(*N,*N);
 
   // init
-  *loglik = 0;
-
-  for( i=0; i<*N; ++i){
-    for( j=i; j<*N; ++j ){
+  for( i=0; i<*N; ++i) {
+    for( j=0; j<=i; ++j ) {
       work2[i][j]=0;
       for( t=0; t<*T; ++t ){ work2[i][j] += y[t][i]*y[t][j]; }
       work2[i][j] /= *T;
       work2[j][i] = work2[i][j];
-      if( i >= j ){
-        C[i][j] = param[i + j];
-      } else {
-        C[i][j] = 0;
-      }
     }
   }
   chol(S[0],work2,*N);
+  chol(C,work2,*N);
 
-  // loop
+  // iterate through all points in the time-series
   for( t=1; t<*T; ++t ){
 
-    // choletzy update on the matrix
-    for( k=t-1; k>t-5; --k){
-      if(k>=0){
-        chol_up(S[t],S[k],y[k],*N,1.0-alpha-beta,alpha,work1);
-      }
+    // choletzy update (sigma + yy)
+    chol_up(work2, S[t-1], y[t-1], *N, lambda, alpha, work1);    
+
+    // sequential choletzky update (sigma + C)
+    for( n=0; n<*N; ++n ){
+      chol_up(S[t], work2, C[n], *N, lambda, beta, work1);    
     }
+
     fwdinv(work2,S[t],*N);
     matvec(eps[t],work2,y[t],*N);
-
     logden = -0.5*(*N)*log(2*PI);
     for(i=0;i<*N;++i) logden += -log( S[t][i][i] )-0.5*eps[t][i]*eps[t][i];
 
+    // accumulate log likelihood
     *loglik += logden;
   }
-  printf("%f\n",*loglik);
 
-  // safeguard
-  if( !isfinite(*loglik) ){
-    *loglik = -HUGE_VAL;
-  }
+  printf("Loglikelihood:%f\n",*loglik);
 
   // copy results
   real_array3d_copy(S,*T,*N,*N,_s);
@@ -471,6 +462,7 @@ void bekk_filter(int *status, double *_s, double* _eps, double *loglik, double *
 
   // cleanup
   destroy_real_array3d(S,*T,*N,*N);
+  destroy_real_matrix(C,*N,*N);
   destroy_real_matrix(y,*T,*N);
   destroy_real_matrix(eps,*T,*N);
   destroy_real_vector(work1,*N);
